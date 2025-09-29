@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,12 +16,15 @@ class VerificationModal extends StatefulWidget {
 class _VerificationModalState extends State<VerificationModal> {
   final _phoneController = TextEditingController();
   final _cinController = TextEditingController();
-  String? _selectedCountry;
+  String _selectedCountry = 'Tunisia';
   String? _selectedOtpMethod;
   bool _isLoading = false;
 
   final List<String> _countries = ['Tunisia', 'Canada', 'United Kingdom', 'Algeria', 'France', 'Germany'];
   final List<String> _otpMethods = ['Email', 'Phone'];
+
+  // Global key for overlay
+  final GlobalKey _overlayKey = GlobalKey();
 
   @override
   void dispose() {
@@ -29,122 +33,211 @@ class _VerificationModalState extends State<VerificationModal> {
     super.dispose();
   }
 
+  // Enhanced snackbar display method
+  void _showEnhancedSnackBar(String message, {bool isError = true, int duration = 4}) {
+    // Hide any existing snackbars first
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-Future<void> _submitVerification() async {
-  if (_selectedCountry == null || _phoneController.text.isEmpty || _cinController.text.isEmpty || _selectedOtpMethod == null) {
+    // Create a custom overlay entry for better positioning
+    final overlay = Overlay.of(context);
+    final renderBox = _overlayKey.currentContext?.findRenderObject() as RenderBox?;
+    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final size = renderBox?.size ?? Size.zero;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please fill all fields'),
-        backgroundColor: Colors.red,
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (!isError)
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
+          ],
+        ),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height - offset.dy + 20,
+          left: 16,
+          right: 16,
+        ),
+        duration: Duration(seconds: duration),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 6,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
-    return;
   }
 
-  setState(() {
-    _isLoading = true;
-  });
+  // Enhanced validation method
+  String? _validateForm() {
+    if (_selectedCountry.isEmpty) {
+      return 'Please select your country';
+    }
+    if (_phoneController.text.isEmpty) {
+      return 'Please enter your phone number';
+    }
+    if (_phoneController.text.length != 8) {
+      return 'Phone number must be 8 digits';
+    }
+    if (_cinController.text.isEmpty) {
+      return 'Please enter your CIN number';
+    }
+    if (_cinController.text.length != 8) {
+      return 'CIN number must be 8 digits';
+    }
+    if (_selectedOtpMethod == null) {
+      return 'Please select OTP delivery method';
+    }
+    return null;
+  }
 
-  try {
-    // Create form data
-    var formData = {
-      'idPays': '177',
-      'phone': _phoneController.text, 
-      'numIdentite': _cinController.text,
-      'typeEnvoiscode': _selectedOtpMethod == 'Email' ? 'email' : 'sms',
-    };
-  
-    // Make HTTP POST request
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token') ?? '';
-    var response = await http.post(
-      Uri.parse('https://spw.demo-tunisie.tn/api/postAuth/verifIdentite'),  
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'token' : token ?? '',
-      },
-      body: formData,
-    );
+  Future<void> _submitVerification() async {
+    // Enhanced validation with specific error messages
+    final validationError = _validateForm();
+    if (validationError != null) {
+      _showEnhancedSnackBar(validationError, isError: true);
+      return;
+    }
 
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
     });
 
-    // Handle response
-    if (response.statusCode == 200) {
-      var responseData = json.decode(response.body);
-      print('API Response: $responseData');
+    try {
+      // Create form data
+      var formData = {
+        'idPays': '177',
+        'phone': _phoneController.text, 
+        'numIdentite': _cinController.text,
+        'typeEnvoiscode': _selectedOtpMethod == 'Email' ? 'email' : 'sms',
+      };
+    
+      // Make HTTP POST request
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token') ?? '';
       
-      if (responseData['code'] == '00') {
-        // Success case
-        var data = responseData['data'];
-        print('Verification successful: $data');
+      final response = await http.post(
+        Uri.parse('https://spw.demo-tunisie.tn/api/postAuth/verifIdentite'),  
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'token': token,
+        },
+        body: formData,
+      ).timeout(const Duration(seconds: 30));
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Handle response
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        print('API Response: $responseData');
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ConfirmCodePage(
-              contactMethod: _selectedOtpMethod == 'Email' ? 'email' : 'phone',
-              contactValue: _selectedOtpMethod == 'Email' 
-                  ? 'user@example.com' // Replace with actual email from response if available
-                  : _cinController.text,
-              verificationType: 'login',
-            ),
-          ),
-        );
-        
-      } else if (responseData['code'] == '01') {
-        // Error case
-        String errorMessage = responseData['message'] ?? 'An error occurred';
-        print('Verification failed: $errorMessage');
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        if (responseData['code'] == '00') {
+          // Success case
+          final data = responseData['data'];
+          print('Verification successful: $data');
+          
+          // Show success message
+          _showEnhancedSnackBar(
+            'Verification successful! Redirecting...',
+            isError: false,
+            duration: 2,
+          );
+
+          // Navigate after a short delay to show success message
+          await Future.delayed(const Duration(milliseconds: 1500));
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ConfirmCodePage(
+                  contactMethod: _selectedOtpMethod == 'Email' ? 'email' : 'phone',
+                  contactValue: _selectedOtpMethod == 'Email' 
+                      ? 'user@example.com' // Replace with actual email from response if available
+                      : _cinController.text,
+                  verificationType: 'login',
+                ),
+              ),
+            );
+          }
+          
+        } else if (responseData['code'] == '01') {
+          // Error case
+          final errorMessage = responseData['message'] ?? 'An error occurred during verification';
+          print('Verification failed: $errorMessage');
+          
+          _showEnhancedSnackBar(errorMessage, isError: true);
+        } else {
+          // Handle unexpected code
+          _showEnhancedSnackBar(
+            'Unexpected response from server. Please try again.',
+            isError: true,
+          );
+        }
       } else {
-        // Handle unexpected code
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unexpected response from server'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
+        // HTTP error
+        _showEnhancedSnackBar(
+          'Server error (${response.statusCode}). Please try again.',
+          isError: true,
         );
       }
-    } else {
-      // HTTP error
+    } on http.ClientException catch (e) {
       setState(() {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('HTTP Error: ${response.statusCode}'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
+      _showEnhancedSnackBar(
+        'Network connection error. Please check your internet.',
+        isError: true,
       );
+      print('HTTP Client Error: $e');
+    } on TimeoutException catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _showEnhancedSnackBar(
+        'Request timeout. Please try again.',
+        isError: true,
+      );
+      print('Timeout Error: $e');
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _showEnhancedSnackBar(
+        'An unexpected error occurred. Please try again.',
+        isError: true,
+      );
+      print('Unexpected Error: $e');
     }
-  } catch (e) {
-    // Network or other errors
-    setState(() {
-      _isLoading = false;
-    });
-    
-    print('Error making API call: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Network error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
-}
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -163,6 +256,7 @@ Future<void> _submitVerification() async {
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Container(
+          key: _overlayKey, // Key for overlay positioning
           constraints: BoxConstraints(
             maxWidth: 400,
             minWidth: isVerySmallScreen ? 280 : 320,
@@ -185,13 +279,13 @@ Future<void> _submitVerification() async {
               
               SizedBox(height: isSmallScreen ? 12 : 16),
 
-              // CIN Input Field
-              _buildCINInputField(size, isSmallScreen),
+              // Phone Input Field
+              _buildPhoneInputField(size, isSmallScreen),
               
               SizedBox(height: isSmallScreen ? 12 : 16),
 
-              // PIN Input Field
-              _buildPINInputField(size, isSmallScreen),
+              // CIN Input Field
+              _buildCINInputField(size, isSmallScreen),
               
               SizedBox(height: isSmallScreen ? 12 : 16),
 
@@ -200,8 +294,8 @@ Future<void> _submitVerification() async {
               
               SizedBox(height: isSmallScreen ? 20 : 24),
 
-              // Submit Button
-              _buildSubmitButton(context, size, isSmallScreen),
+              // Enhanced Submit Button with better loading state
+              _buildEnhancedSubmitButton(context, size, isSmallScreen),
             ],
           ),
         ),
@@ -214,14 +308,27 @@ Future<void> _submitVerification() async {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
-          child: Text(
-            "Additional Verification",
-            style: TextStyle(
-              fontSize: isSmallScreen ? 16 : 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade900,
-              letterSpacing: -0.3,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Additional Verification",
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 16 : 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade900,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Please verify your identity to continue",
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 12 : 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 12),
@@ -256,9 +363,7 @@ Future<void> _submitVerification() async {
             color: Colors.grey.shade700,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Container(
           decoration: BoxDecoration(
             boxShadow: [
@@ -317,7 +422,7 @@ Future<void> _submitVerification() async {
             }).toList(),
             onChanged: (String? newValue) {
               setState(() {
-                _selectedCountry = newValue;
+                _selectedCountry = newValue ?? 'Tunisia';
               });
             },
           ),
@@ -326,7 +431,7 @@ Future<void> _submitVerification() async {
     );
   }
 
-  Widget _buildCINInputField(Size size, bool isSmallScreen) {
+  Widget _buildPhoneInputField(Size size, bool isSmallScreen) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -338,9 +443,7 @@ Future<void> _submitVerification() async {
             color: Colors.grey.shade700,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Container(
           decoration: BoxDecoration(
             boxShadow: [
@@ -353,7 +456,7 @@ Future<void> _submitVerification() async {
           ),
           child: TextField(
             controller: _phoneController,
-            keyboardType: TextInputType.number,
+            keyboardType: TextInputType.phone,
             maxLength: 8,
             style: TextStyle(
               fontSize: isSmallScreen ? 14 : 15,
@@ -364,7 +467,7 @@ Future<void> _submitVerification() async {
                   size: 20, color: Colors.grey.shade500),
               filled: true,
               fillColor: Colors.white,
-              hintText: "Enter your Phone number",
+              hintText: "Enter your phone number",
               hintStyle: TextStyle(
                 fontSize: isSmallScreen ? 14 : 15,
                 color: Colors.grey.shade400,
@@ -389,7 +492,7 @@ Future<void> _submitVerification() async {
     );
   }
 
-  Widget _buildPINInputField(Size size, bool isSmallScreen) {
+  Widget _buildCINInputField(Size size, bool isSmallScreen) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -401,9 +504,7 @@ Future<void> _submitVerification() async {
             color: Colors.grey.shade700,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Container(
           decoration: BoxDecoration(
             boxShadow: [
@@ -466,9 +567,7 @@ Future<void> _submitVerification() async {
             color: Colors.grey.shade700,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -546,7 +645,7 @@ Future<void> _submitVerification() async {
     );
   }
 
-  Widget _buildSubmitButton(BuildContext context, Size size, bool isSmallScreen) {
+  Widget _buildEnhancedSubmitButton(BuildContext context, Size size, bool isSmallScreen) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -562,20 +661,40 @@ Future<void> _submitVerification() async {
         ),
         onPressed: _isLoading ? null : _submitVerification,
         child: _isLoading
-            ? SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Verifying...",
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               )
-            : Text(
-                "Verify & Continue",
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 14 : 15,
-                  fontWeight: FontWeight.w600,
-                ),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.verified_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Verify & Continue",
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
       ),
     );

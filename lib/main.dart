@@ -12,9 +12,22 @@ import 'package:spw/authentication/views/touch_id_screen.dart';
 import 'package:spw/common/views/login_or_register_screen.dart';
 import 'package:spw/common/views/splash_screen.dart';
 import 'package:spw/common/views/welcome_screen.dart';
-import 'package:spw/dashboard/views/dashboard_screen.dart';
+import 'package:spw/dashboard/views/dashbord/QRCodeModal.dart';
+import 'package:spw/dashboard/views/dashbord/account_topUp_screen.dart';
+import 'package:spw/dashboard/views/dashbord/merchant_payment_screen.dart';
+import 'package:spw/dashboard/views/dashbord/money_transfer_screen.dart';
+import 'package:spw/dashboard/views/dashbord/notifications_screen.dart';
+import 'package:spw/dashboard/views/dashbord/paymentID_screen.dart';
+import 'package:spw/dashboard/views/dashbord/phone_recharge_screen.dart';
+import 'package:spw/dashboard/views/dashbord/profile_screen.dart';
+import 'package:spw/dashboard/views/dashbord/settings_screen.dart';
+import 'package:spw/dashboard/views/dashbord/support_screen.dart';
+import 'package:spw/dashboard/views/dashbord/transaction_history_screen.dart';
+import 'package:spw/dashboard/views/dashbord/dashboard_screen.dart';
+import 'package:spw/http/api_client.dart';
 
 void main() {
+ //   ApiClient.client; 
   runApp(const MyApp());
 }
 
@@ -44,11 +57,10 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/splash',
       routes: {
-        '/home': (context) => const DashboardScreen(),
         '/splash': (context) => const SplashScreen(),
         '/sign-in': (context) => const SignInPage(),
         '/choose-auth': (context) => ChooseLoginOrRegisterScreen(),
-         '/success': (context) => const SuccessScreen(),
+        '/success': (context) => const SuccessScreen(),
         '/create-password': (context) => const CreatePasswordScreen(),
         '/personal-info': (context) => const PersonalInfoScreen(),
         '/address-info': (context) => const HomeAddressScreen(),
@@ -64,6 +76,18 @@ class MyApp extends StatelessWidget {
         },*/
         /*        '/menuext': (context) => const MenuExtScreen(), // تحتاج لإنشاء هذه الصفحة
         '/offline': (context) => const OfflineScreen(), // تحتاج لإنشاء هذه الصفحة*/
+        '/dashboard': (context) => const WalletDashboard(),
+        '/history': (context) => const TransactionHistoryScreen(),
+        '/merchant': (context) => const MerchantPaymentScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/recharge': (context) => const PhoneRechargeScreen(),
+        '/transfer': (context) => const MoneyTransferScreen(),
+        '/topup': (context) => const AccountTopUpScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/payment-id': (context) => const PaymentIDScreen(),
+        '/scan': (context) => const QRCodeModal(),
+        '/support': (context) => const SupportScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
       },
     );
   }

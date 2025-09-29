@@ -21,22 +21,113 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
   bool _obscureText = true;
   bool _isLoading = false;
   bool _isBiometricAvailable = false;
+  bool _isFirstTime = true; // Will be loaded from SharedPreferences
   BiometricType _availableBiometric = BiometricType.weak;
+  String? _storedPin; // Will store the PIN from SharedPreferences
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_pinFocusNode);
-      _checkBiometricAvailability();
+      _initializeApp();
     });
   }
 
-  @override
-  void dispose() {
-    _pinController.dispose();
-    _pinFocusNode.dispose();
-    super.dispose();
+  Future<void> _initializeApp() async {
+    await _loadSharedPreferences();
+    await _checkBiometricAvailability();
+    
+    // If it's not first time and biometric is available, try biometric first
+    if (!_isFirstTime && _isBiometricAvailable) {
+      await _authenticateWithBiometrics();
+    }
+  }
+
+  Future<void> _loadSharedPreferences() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isFirstTime = prefs.getBool('isFirst') ?? true;
+        _storedPin = prefs.getString('userPin');
+      });
+      
+      print('Loaded from SharedPreferences - isFirst: $_isFirstTime, hasStoredPin: ${_storedPin != null}');
+    } catch (e) {
+      print('Error loading SharedPreferences: $e');
+    }
+  }
+
+  Future<void> _savePinToSharedPreferences(String pin) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userPin', pin);
+      await prefs.setBool('isFirst', false);
+      
+      setState(() {
+        _storedPin = pin;
+        _isFirstTime = false;
+      });
+      
+      print('PIN saved to SharedPreferences successfully');
+    } catch (e) {
+      print('Error saving PIN to SharedPreferences: $e');
+      throw Exception('Failed to save PIN');
+    }
+  }
+
+  // NEW: Save user data to SharedPreferences
+  Future<void> _saveUserDataToSharedPreferences(Map<String, dynamic> responseData) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      
+      // Save main response data
+      if (responseData['nextToken'] != null) {
+        await prefs.setString('nextToken', responseData['nextToken']);
+      }
+     
+      // Save user object data
+      if (responseData['user'] != null) {
+        final user = responseData['user'];
+        
+        await prefs.setString('firstName', user['FirstName'] ?? '');
+        await prefs.setString('lastName', user['LastName'] ?? '');
+        await prefs.setString('userName', user['UserName'] ?? '');
+        await prefs.setString('email', user['Email'] ?? '');
+        await prefs.setString('birthDate', user['BirthDate'] ?? '');
+        await prefs.setDouble('soldeAvoir', double.tryParse(user['SoldeAvoir']?.toString() ?? '0.0') ?? 0.0);
+        await prefs.setString('session', user['Session'] ?? '');
+        await prefs.setInt('action', int.tryParse(user['Action']?.toString() ?? '0') ?? 0);
+        await prefs.setString('ville', user['Ville'] ?? '');
+        await prefs.setString('adresse', user['Adresse'] ?? '');
+        await prefs.setString('enable', user['Enable'] ?? '');
+        await prefs.setString('phone', user['Phone'] ?? '');
+        await prefs.setDouble('plafond', double.tryParse(user['plafond']?.toString() ?? '0.0') ?? 0.0);
+        await prefs.setString('smsValidation', user['smsValidation'] ?? '');
+        await prefs.setString('etat', user['etat'] ?? '');
+        await prefs.setString('idUnique', user['id_unique'] ?? '');
+        await prefs.setInt('idPays', int.tryParse(user['idPays']?.toString() ?? '0') ?? 0);
+        await prefs.setInt('niveau', int.tryParse(user['Niveau']?.toString() ?? '0') ?? 0);
+        await prefs.setDouble('soldeWallet', double.tryParse(user['SoldeWallet']?.toString() ?? '0.0') ?? 0.0);
+        await prefs.setInt('nbPoint', int.tryParse(user['nbPoint']?.toString() ?? '0') ?? 0);
+        await prefs.setString('actualStatus', user['actualStatus'] ?? '');
+        await prefs.setString('typeVerification', user['typeVerification'] ?? '');
+        await prefs.setInt('pinForPaiement', int.tryParse(user['pinForPaiement']?.toString() ?? '0') ?? 0);
+        await prefs.setString('type', user['type'] ?? '');
+      }
+      
+      print('User data saved to SharedPreferences successfully');
+      print('Saved user data:');
+      print('- Name: ${prefs.getString('firstName')} ${prefs.getString('lastName')}');
+      print('- Email: ${prefs.getString('email')}');
+      print('- Phone: ${prefs.getString('phone')}');
+      print('- Wallet Balance: ${prefs.getDouble('soldeWallet')}');
+      print('- Unique ID: ${prefs.getString('idUnique')}');
+      
+    } catch (e) {
+      print('Error saving user data to SharedPreferences: $e');
+      throw Exception('Failed to save user data');
+    }
   }
 
   Future<void> _checkBiometricAvailability() async {
@@ -68,6 +159,34 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
       _isLoading = true;
     });
 
+    try {
+      // If it's first time, save the PIN and verify automatically
+      if (_isFirstTime) {
+        if (_pinController.text.length == 6) {
+          await _savePinToSharedPreferences(_pinController.text);
+          
+          // After saving PIN, verify it with API
+          await _verifyPinWithApi();
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          _showError('PIN must be exactly 6 digits');
+          return;
+        }
+      } else {
+        // Not first time - verify with API
+        await _verifyPinWithApi();
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Error: ${e.toString()}');
+    }
+  }
+
+  Future<void> _verifyPinWithApi() async {
     try {
       SharedPreferences preferences = await SharedPreferences.getInstance();
       var token = preferences.getString('token') ?? '';
@@ -104,9 +223,12 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
         print('Verify PIN API Response: $responseData');
         
         if (responseData['code'] == '00') {
+          // NEW: Save user data to SharedPreferences before navigation
+          await _saveUserDataToSharedPreferences(responseData);
+          
           // Success case - PIN verification successful
           if (mounted) {
-            Navigator.pushNamed(context, '/home');
+            Navigator.pushNamed(context, '/dashboard');
           }
         } else if (responseData['code'] == '01') {
           _showError(responseData['message'] ?? 'Incorrect PIN. Please try again.');
@@ -165,8 +287,73 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
   }
 
   Future<void> _handleBiometricSuccess() async {
-                 Navigator.pushNamed(context, '/home');
+    try {
+      setState(() {
+        _isLoading = true;
+      });
 
+      // Use the stored PIN for biometric authentication
+      if (_storedPin != null) {
+        SharedPreferences preferences = await SharedPreferences.getInstance();
+        var token = preferences.getString('token') ?? '';
+
+        if (token.isEmpty) {
+          _showError('Authentication token missing');
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Prepare PIN verification data using stored PIN
+        var verificationData = {
+          'pin': _storedPin!,
+        };
+
+        // Make HTTP POST request to verify PIN
+        var response = await http.post(
+          Uri.parse('https://spw.demo-tunisie.tn/api/postAuth/verifPin'),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'token': token,
+          },
+          body: verificationData,
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (response.statusCode == 200) {
+          var responseData = json.decode(response.body);
+          print('Biometric PIN Verification Response: $responseData');
+          
+          if (responseData['code'] == '00') {
+            // NEW: Save user data to SharedPreferences before navigation
+            await _saveUserDataToSharedPreferences(responseData);
+            
+            // Success case - navigate to dashboard
+            if (mounted) {
+              Navigator.pushNamed(context, '/dashboard');
+            }
+          } else {
+            _showError('Biometric authentication failed');
+          }
+        } else {
+          _showError('HTTP Error during biometric authentication: ${response.statusCode}');
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        _showError('No stored PIN found. Please use PIN login.');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Error during biometric authentication: ${e.toString()}');
+    }
   }
 
   String _getBiometricApiValue() {
@@ -284,7 +471,7 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Header Section
+                      // Header Section - Dynamic based on first time or not
                       _buildHeaderSection(),
 
                       const SizedBox(height: 40),
@@ -324,16 +511,16 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.lock_rounded,
+          child: Icon(
+            _isFirstTime ? Icons.lock_open_rounded : Icons.lock_rounded,
             size: 36,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Enter your PIN',
-          style: TextStyle(
+        Text(
+          _isFirstTime ? 'Create your PIN' : 'Enter your PIN',
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -341,11 +528,13 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Enter your PIN to access your account',
-            style: TextStyle(
+            _isFirstTime 
+                ? 'Create a 6-digit PIN to secure your account'
+                : 'Enter your PIN to access your account',
+            style: const TextStyle(
               fontSize: 16,
               color: Colors.grey,
               height: 1.4,
@@ -371,7 +560,7 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
             obscureText: _obscureText,
             keyboardType: TextInputType.number,
             textAlign: TextAlign.center,
-            maxLength: 8,
+            maxLength: 6, // Fixed to 6 digits
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -381,7 +570,7 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
-              hintText: 'Enter PIN',
+              hintText: _isFirstTime ? 'Create 6-digit PIN' : 'Enter PIN',
               hintStyle: const TextStyle(
                 color: Colors.grey,
                 letterSpacing: 0,
@@ -414,9 +603,13 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
             ),
             onChanged: (value) {
               setState(() {});
+              // Auto-submit when 6 digits are entered for first-time users
+              if (_isFirstTime && value.length == 6) {
+                _verifyPin();
+              }
             },
             onSubmitted: (value) {
-              if (_pinController.text.length >= 4) {
+              if (_pinController.text.length == 6) {
                 _verifyPin();
               }
             },
@@ -433,6 +626,8 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
 
   Widget _buildPinLengthIndicator() {
     final length = _pinController.text.length;
+    final isFirstTime = _isFirstTime;
+    
     return Container(
       constraints: const BoxConstraints(maxWidth: 400),
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -447,11 +642,11 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
             ),
           ),
           Text(
-            '4-8 digits',
+            '6 digits',
             style: TextStyle(
               fontSize: 12,
-              color: length >= 4 && length <= 8 ? Colors.green : Colors.grey.shade600,
-              fontWeight: length >= 4 && length <= 8 ? FontWeight.w600 : FontWeight.normal,
+              color: length == 6 ? Colors.green : Colors.grey.shade600,
+              fontWeight: length == 6 ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],
@@ -465,8 +660,8 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
         // Action Button
         _buildActionButton(),
 
-        // Biometric Option (only show if available)
-        if (_isBiometricAvailable) _buildBiometricOption(),
+        // Biometric Option (only show if available and not first time)
+        if (_isBiometricAvailable && !_isFirstTime) _buildBiometricOption(),
 
         const SizedBox(height: 16),
       ],
@@ -475,7 +670,7 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
 
   Widget _buildActionButton() {
     final isValidPin = _pinController.text.isNotEmpty && 
-        _pinController.text.length >= 4;
+        _pinController.text.length == 6; // Must be exactly 6 digits
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 400),
@@ -500,9 +695,9 @@ class _VerifyPinScreenState extends State<VerifyPinScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Verify PIN',
-                style: TextStyle(
+            : Text(
+                _isFirstTime ? 'Create & Verify PIN' : 'Verify PIN',
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
