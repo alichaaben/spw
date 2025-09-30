@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spw/dashboard/models/dash_models.dart';
+import 'package:spw/dashboard/views/dashbord/qr_scan_marchant_screen.dart';
 import 'package:spw/http/api_crypter.dart';
 
 
@@ -3263,8 +3264,7 @@ void _showEnhancedSuccessDialog(String title, String message) {
   }
 
   void _showScanner() {
-    // Enhanced scanner implementation
-  }
+Navigator.push(context, MaterialPageRoute(builder: (context) => ScanQRMarchandScreen()));  }
 
   void _showPaymentHistory() {
     // Enhanced payment history navigation

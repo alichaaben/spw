@@ -1,7 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  String _userName = 'Utilisateur';
+  String _userEmail = 'user@email.com';
+  double _userBalance = 0.000;
+  String _userPhone = '';
+  String _userId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+Future<void> _loadUserData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    setState(() {
+      
+      _userName = prefs.getString('userName') ?? '';
+      _userEmail = prefs.getString('email') ?? '';
+      _userBalance = prefs.getDouble('soldeWallet') ?? 0.0;
+      _userPhone = prefs.getString('phone') ?? '';
+    });
+
+    print('Loaded user: $_userName ');
+    print('Wallet Balance: $_userBalance');
+    print('Phone: $_userPhone'); 
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +48,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           // Header with user profile
           Container(
-            height: isSmallScreen ? 180 : 200,
+            height: isSmallScreen ? 200 : 220,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -69,55 +103,106 @@ class AppDrawer extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Ali Chaabane',
+                                  _userName,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: isSmallScreen ? 16 : 18,
                                     fontWeight: FontWeight.w600,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  'ali.chaabane@email.com',
+                                  _userEmail,
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.8),
                                     fontSize: isSmallScreen ? 12 : 14,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
+                                if (_userPhone.isNotEmpty) ...[
+                                  SizedBox(height: 2),
+                                  Text(
+                                    _userPhone,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: isSmallScreen ? 11 : 12,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
                         ],
                       ),
                       SizedBox(height: isSmallScreen ? 8 : 12),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isSmallScreen ? 12 : 16,
-                          vertical: isSmallScreen ? 6 : 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_rounded,
-                              color: Colors.white,
-                              size: isSmallScreen ? 14 : 16,
+                      // Balance and ID information
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmallScreen ? 12 : 16,
+                              vertical: isSmallScreen ? 6 : 8,
                             ),
-                            SizedBox(width: 6),
-                            Text(
-                              '3,002.000 DT',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isSmallScreen ? 12 : 14,
-                                fontWeight: FontWeight.w600,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  color: Colors.white,
+                                  size: isSmallScreen ? 14 : 16,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  '${_userBalance} DT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: isSmallScreen ? 12 : 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_userId.isNotEmpty) ...[
+                            SizedBox(height: 6),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallScreen ? 12 : 16,
+                                vertical: isSmallScreen ? 4 : 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.fingerprint_rounded,
+                                    color: Colors.white.withOpacity(0.8),
+                                    size: isSmallScreen ? 12 : 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'ID: ${_truncateText(_userId, length: 12)}',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: isSmallScreen ? 10 : 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -132,50 +217,61 @@ class AppDrawer extends StatelessWidget {
               padding: EdgeInsets.zero,
               children: [
                 // Account Section
-                _buildSectionHeader('ACCOUNT'),
+                _buildSectionHeader('COMPTE'),
                 _buildDrawerItem(
                   icon: Icons.person_outline_rounded,
-                  title: 'Profile',
+                  title: 'Profil',
                   onTap: () => _navigateTo(context, '/profile'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.history_rounded,
-                  title: 'Transaction History',
+                  title: 'Historique des transactions',
                   onTap: () => _navigateTo(context, '/history'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.account_balance_wallet_rounded,
-                  title: 'Account Balance',
+                  title: 'Solde du compte',
                   onTap: () => _navigateTo(context, '/balance'),
                 ),
+                _buildDrawerItem(
+                  icon: Icons.qr_code_rounded,
+                  title: 'Mon QR Code',
+                  onTap: () => _navigateTo(context, '/my-qr'),
+                ),
+
                 // Services Section
                 _buildSectionHeader('SERVICES'),
                 _buildDrawerItem(
                   icon: Icons.phone_android_rounded,
-                  title: 'Phone Recharge',
+                  title: 'Recharge téléphonique',
                   onTap: () => _navigateTo(context, '/recharge'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.shopping_cart_rounded,
-                  title: 'Merchant Payment',
+                  title: 'Paiement marchand',
                   onTap: () => _navigateTo(context, '/merchant'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.send_rounded,
-                  title: 'Money Transfer',
+                  title: 'Transfert d\'argent',
                   onTap: () => _navigateTo(context, '/transfer'),
                 ),
                 _buildDrawerItem(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'Paiement de factures',
+                  onTap: () => _navigateTo(context, '/bills'),
+                ),
+                _buildDrawerItem(
                   icon: Icons.sports_esports_rounded,
-                  title: 'Gaming',
+                  title: 'Jeux et divertissement',
                   onTap: () => _navigateTo(context, '/entertainment'),
                 ),
 
                 // Settings Section
-                _buildSectionHeader('SETTINGS'),
+                _buildSectionHeader('PARAMÈTRES'),
                 _buildDrawerItem(
                   icon: Icons.dark_mode_rounded,
-                  title: 'Dark Mode',
+                  title: 'Mode sombre',
                   trailing: Switch(
                     value: false,
                     onChanged: (value) {
@@ -185,36 +281,46 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
                 _buildDrawerItem(
-                  icon: Icons.settings_rounded,
-                  title: 'App Settings',
-                  onTap: () => _navigateTo(context, '/settings'),
+                  icon: Icons.notifications_rounded,
+                  title: 'Notifications',
+                  onTap: () => _navigateTo(context, '/notifications'),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.language_rounded,
+                  title: 'Langue',
+                  onTap: () => _navigateTo(context, '/language'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.security_rounded,
-                  title: 'Privacy & Security',
-                  onTap: () => _navigateTo(context, '/privacy'),
+                  title: 'Sécurité',
+                  onTap: () => _navigateTo(context, '/security'),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.settings_rounded,
+                  title: 'Paramètres de l\'app',
+                  onTap: () => _navigateTo(context, '/settings'),
                 ),
 
                 // Support Section
                 _buildSectionHeader('SUPPORT'),
                 _buildDrawerItem(
                   icon: Icons.help_rounded,
-                  title: 'Help Center',
+                  title: 'Centre d\'aide',
                   onTap: () => _navigateTo(context, '/help'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.support_agent_rounded,
-                  title: 'Customer Support',
+                  title: 'Support client',
                   onTap: () => _navigateTo(context, '/support'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_rounded,
-                  title: 'Report Issue',
+                  title: 'Signaler un problème',
                   onTap: () => _navigateTo(context, '/report'),
                 ),
                 _buildDrawerItem(
                   icon: Icons.info_rounded,
-                  title: 'About App',
+                  title: 'À propos',
                   onTap: () => _navigateTo(context, '/about'),
                 ),
 
@@ -222,23 +328,31 @@ class AppDrawer extends StatelessWidget {
                 _buildSectionHeader('ACTIONS'),
                 _buildDrawerItem(
                   icon: Icons.share_rounded,
-                  title: 'Share with Friends',
+                  title: 'Partager l\'app',
                   iconColor: const Color(0xFF6C5CE7),
                   onTap: () {
-                    // TODO: Implement share functionality
+                    _shareApp(context);
                   },
                 ),
                 _buildDrawerItem(
                   icon: Icons.rate_review_rounded,
-                  title: 'Rate App',
+                  title: 'Évaluer l\'app',
                   iconColor: const Color(0xFFFDCB6E),
                   onTap: () {
-                    // TODO: Implement rate app functionality
+                    _rateApp(context);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.refresh_rounded,
+                  title: 'Actualiser les données',
+                  iconColor: const Color(0xFF00B894),
+                  onTap: () {
+                    _refreshUserData();
                   },
                 ),
                 _buildDrawerItem(
                   icon: Icons.logout_rounded,
-                  title: 'Sign Out',
+                  title: 'Se déconnecter',
                   iconColor: const Color(0xFFE74C3C),
                   textColor: const Color(0xFFE74C3C),
                   onTap: () {
@@ -249,13 +363,26 @@ class AppDrawer extends StatelessWidget {
                 // App Version
                 Padding(
                   padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
-                  child: Text(
-                    'Wallet App v1.0.0',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Column(
+                    children: [
+                      Text(
+                        'SPW Wallet v1.0.0',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Votre portefeuille numérique sécurisé',
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -326,38 +453,76 @@ class AppDrawer extends StatelessWidget {
     Navigator.pushNamed(context, route);
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
+  void _refreshUserData() {
+    _loadUserData();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Données actualisées'),
+        backgroundColor: const Color(0xFF6C5CE7),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  void _shareApp(BuildContext context) {
+    // TODO: Implement share functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Fonctionnalité de partage à venir'),
+        backgroundColor: const Color(0xFF6C5CE7),
+      ),
+    );
+  }
+
+  void _rateApp(BuildContext context) {
+    // TODO: Implement rate app functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Fonctionnalité d\'évaluation à venir'),
+        backgroundColor: const Color(0xFFFDCB6E),
+      ),
+    );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            'Sign Out',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                color: Color(0xFFE74C3C),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Se déconnecter',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           content: const Text(
-            'Are you sure you want to sign out of your account?',
+            'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text(
-                'Cancel',
+                'Annuler',
                 style: TextStyle(color: Colors.grey),
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close drawer
-                // TODO: Implement logout logic
-                Navigator.pushReplacementNamed(context, '/sign-in');
-              },
+              onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE74C3C),
                 shape: RoundedRectangleBorder(
@@ -365,7 +530,7 @@ class AppDrawer extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Sign Out',
+                'Déconnexion',
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -373,5 +538,37 @@ class AppDrawer extends StatelessWidget {
         );
       },
     );
+
+    if (result == true) {
+      await _performLogout();
+      Navigator.pop(context); // Close drawer
+      Navigator.pushReplacementNamed(context, '/sign-in');
+    }
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      
+      // Clear all user data from SharedPreferences
+      await prefs.remove('token');
+      await prefs.remove('nextToken');
+      await prefs.remove('nom');
+      await prefs.remove('prenom');
+      await prefs.remove('email');
+      await prefs.remove('telephone');
+      await prefs.remove('solde');
+      await prefs.remove('idUnique');
+      await prefs.remove('userData');
+      
+      print('User logged out successfully');
+    } catch (e) {
+      print('Error during logout: $e');
+    }
+  }
+
+  String _truncateText(String text, {int length = 10}) {
+    if (text.length <= length) return text;
+    return '${text.substring(0, length)}...';
   }
 }

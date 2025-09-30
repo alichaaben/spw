@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spw/dashboard/views/dashbord/qr_scan_screen.dart';
 import 'dash_drawer.dart';
 
 class WalletDashboard extends StatefulWidget {
@@ -517,32 +518,8 @@ class _WalletDashboardState extends State<WalletDashboard> with SingleTickerProv
     );
   }
 
-  Widget _buildEnhancedScanButton(bool isSmallScreen) {
-    return GestureDetector(
-      onTap: () => _navigateToScan(context),
-      child: Container(
-        width: isSmallScreen ? 50 : 56,
-        height: isSmallScreen ? 50 : 56,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          Icons.qr_code_scanner_rounded,
-          color: const Color(0xFF6C5CE7),
-          size: isSmallScreen ? 24 : 28,
-        ),
-      ),
-    );
-  }
 
+ 
   Widget _buildEnhancedStatsSection(bool isSmallScreen, Size size) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1163,10 +1140,43 @@ class _WalletDashboardState extends State<WalletDashboard> with SingleTickerProv
     _showComingSoonSnackBar(context, 'Payment ID');
   }
 
-  void _navigateToScan(BuildContext context) {
-    Navigator.pushNamed(context, '/scan');
-    _showComingSoonSnackBar(context, 'Scan & Pay');
+void _showMyQrModal(){
+   Navigator.pushNamed(context, '/scan');
   }
+// Update the _navigateToScan method
+void _navigateToScan(BuildContext context) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const QRScanScreen()),
+  );
+}
+
+// Also update the scan button in _buildEnhancedScanButton
+Widget _buildEnhancedScanButton(bool isSmallScreen) {
+  return GestureDetector(
+    onTap: () => _showMyQrModal(),
+    child: Container(
+      width: isSmallScreen ? 50 : 56,
+      height: isSmallScreen ? 50 : 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Icon(
+        Icons.qr_code_scanner_rounded,
+        color: const Color(0xFF6C5CE7),
+        size: isSmallScreen ? 24 : 28,
+      ),
+    ),
+  );
+}
 
   void _navigateToSupport(BuildContext context) {
     Navigator.pushNamed(context, '/support');
