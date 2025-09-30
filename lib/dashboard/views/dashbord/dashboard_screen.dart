@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spw/dashboard/views/dashbord/qr_scan_screen.dart';
+import 'package:spw/http/api_crypter.dart';
 import 'dash_drawer.dart';
 
 class WalletDashboard extends StatefulWidget {
@@ -76,19 +80,137 @@ class _WalletDashboardState extends State<WalletDashboard> with SingleTickerProv
     print('Unique ID: $_idUnique');
   }
 
+Future<void> geUserInfoApi() async {
+  try {
+    // Get tokens from SharedPreferences
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('token');
+    final String? nextToken = prefs.getString('nextToken');
+
+    print('Token: $token');
+    print('NextToken: $nextToken');
+
+    // Check if token exists
+    if (token == null || token.isEmpty) {
+      print('❌ No token found in SharedPreferences');
+      return;
+    }
+ 
+    // Generate keys
+    final String idempotencyKey = ApiCrypter.generateKey();
+    final String encryptedKey = ApiCrypter.crypt(idempotencyKey);
+
+    // Create headers
+    final headers = {
+      'Content-Type': 'application/json',
+      'token': token,
+      if (nextToken != null && nextToken.isNotEmpty) 'NextToken': nextToken,
+      'idempotencykey': idempotencyKey,
+      'key': encryptedKey,
+    };
+
+    // Make API call
+    final response = await http.get(
+      Uri.parse('https://spw.demo-tunisie.tn/api/general/userinfo'),
+      headers: headers,
+    );
+
+    // Print response details
+    print('✅ Response Status Code: ${response.statusCode}');
+    print('✅ Response Headers: ${response.headers}');
+    print('✅ Response Body: ${response.body}');
+
+    // Check if request was successful
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      print('✅ API Call Successful!');
+      print('✅ User Data: $responseData');
+      
+      // Save data to SharedPreferences
+      await _saveUserDataToSharedPreferences(responseData);
+    } else {
+      print('❌ API Call Failed with status: ${response.statusCode}');
+    }
+
+  } catch (e) {
+    print('❌ Error making API call: $e');
+  }
+}
+
+Future<void> _saveUserDataToSharedPreferences(Map<String, dynamic> responseData) async {
+  try {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    // Save main response data
+    if (responseData['nextToken'] != null) {
+      await prefs.setString('nextToken', responseData['nextToken']);
+      print('💾 NextToken saved: ${responseData['nextToken']}');
+    }
+    
+    // Save state and code
+    await prefs.setString('state', responseData['state'] ?? '');
+    await prefs.setString('code', responseData['code'] ?? '');
+   
+    // Save data object
+    if (responseData['data'] != null) {
+      final data = responseData['data'];
+      
+      await prefs.setString('etat', data['etat'] ?? '');
+      await prefs.setString('sms_validation', data['sms_validation'] ?? '');
+      await prefs.setInt('action', data['action'] ?? 0);
+      await prefs.setDouble('plafond', (data['plafond'] ?? 0).toDouble());
+      await prefs.setDouble('solde', double.tryParse(data['solde']?.toString() ?? '0.000') ?? 0.000);
+      await prefs.setString('type_verification', data['type_verification'] ?? '');
+      await prefs.setString('enable', data['enable'] ?? '');
+      await prefs.setInt('id_pays', data['id_pays'] ?? 0);
+      await prefs.setInt('niveau', data['Niveau'] ?? 0);
+      await prefs.setDouble('bonus', double.tryParse(data['bonus']?.toString() ?? '0.000') ?? 0.000);
+      await prefs.setInt('nbPoint', data['nbPoint'] ?? 0);
+      await prefs.setString('status', data['status'] ?? '');
+      await prefs.setInt('unviewedNotifications', data['unviewedNotifications'] ?? 0);
+      await prefs.setInt('unviewedReclamations', data['unviewedReclamations'] ?? 0);
+      await prefs.setBool('haveCards', data['haveCards'] ?? false);
+      await prefs.setInt('pinForPaiement', data['pinForPaiement'] ?? 0);
+      await prefs.setString('wallet_idPaiement', data['wallet_idPaiement']?.toString() ?? '');
+      await prefs.setDouble('wallet_solde', double.tryParse(data['wallet_solde']?.toString() ?? '0.000') ?? 0.000);
+      await prefs.setString('ville', data['ville'] ?? '');
+      await prefs.setString('birthDate', data['birthDate'] ?? '');
+    }
+    
+    // Save lastPositive data
+    if (responseData['lastPositive'] != null) {
+      final lastPositive = responseData['lastPositive'];
+      await prefs.setString('lastPositive_nomAffichage', lastPositive['nomAffichage'] ?? '');
+      await prefs.setDouble('lastPositive_montant', double.tryParse(lastPositive['montant']?.toString() ?? '0.000') ?? 0.000);
+    }
+    
+    // Save lastNegative data
+    if (responseData['lastNegative'] != null) {
+      final lastNegative = responseData['lastNegative'];
+      await prefs.setString('lastNegative_nomAffichage', lastNegative['nomAffichage'] ?? '');
+      await prefs.setDouble('lastNegative_montant', double.tryParse(lastNegative['montant']?.toString() ?? '0.000') ?? 0.000);
+    }
+    
+    print('✅ User data saved to SharedPreferences successfully');
+    print('📊 Saved user data summary:');
+    print('   - State: ${prefs.getString('state')}');
+    print('   - Code: ${prefs.getString('code')}');
+    print('   - Solde: ${prefs.getDouble('solde')} DT');
+    print('   - Wallet Solde: ${prefs.getDouble('wallet_solde')} DT');
+    print('   - Wallet ID: ${prefs.getString('wallet_idPaiement')}');
+    print('   - Ville: ${prefs.getString('ville')}');
+    print('   - Status: ${prefs.getString('enable')}');
+    print('   - Niveau: ${prefs.getInt('niveau')}');
+    print('   - Unviewed Notifications: ${prefs.getInt('unviewedNotifications')}');
+    
+  } catch (e) {
+    print('❌ Error saving user data to SharedPreferences: $e');
+    throw Exception('Failed to save user data');
+  }
+}
   // Method to refresh data
   Future<void> _refreshData() async {
-    await _loadUserData();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Data refreshed successfully'),
-        backgroundColor: const Color(0xFF6C5CE7),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+    geUserInfoApi();
   }
 
   @override

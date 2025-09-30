@@ -46,20 +46,19 @@ class WelcomeScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF6C5CE7),
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6C5CE7).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                  // boxShadow: [
+                  //   BoxShadow(
+                  //     color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                  //     blurRadius: 20,
+                  //     offset: const Offset(0, 10),
+                  //   ),
+                  // ],
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  size: 60,
-                  color: Colors.white,
-                ),
-              ),
+                child: Image.asset(
+              'assets/img/spw_logo.jpeg',
+              fit: BoxFit.contain,
+              width: 50,
+            ),),
 
               SizedBox(height: size.height * 0.06),
 

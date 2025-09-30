@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spw/dashboard/models/dash_models.dart';
+import 'package:spw/dashboard/views/dashbord/qr_scan_screen.dart';
 import 'package:spw/http/api_crypter.dart';
 
 class MoneyTransferScreen extends StatefulWidget {
@@ -303,6 +304,10 @@ class _MoneyTransferScreenState extends State<MoneyTransferScreen> with SingleTi
                   onTap: () => setState(() {
                     _selectedMethod = index;
                     _recipientType = method['type'];
+                    if(method['type'] == 'qr') {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) =>QRScanScreen()));
+                    }
+
                   }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -416,23 +421,23 @@ class _MoneyTransferScreenState extends State<MoneyTransferScreen> with SingleTi
           const SizedBox(height: 16),
 
           // Quick Amounts Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isSmallScreen ? 3 : (isTablet ? 6 : 3),
-              crossAxisSpacing: isSmallScreen ? 8 : 12,
-              mainAxisSpacing: isSmallScreen ? 8 : 12,
-              childAspectRatio: isSmallScreen ? 1.8 : 2.0,
-            ),
-            itemCount: _quickAmounts.length,
-            itemBuilder: (context, index) {
-              final amount = _quickAmounts[index];
-              return _buildAmountChip(amount, isSmallScreen);
-            },
-          ),
+          // GridView.builder(
+          //   shrinkWrap: true,
+          //   physics: const NeverScrollableScrollPhysics(),
+          //   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          //     crossAxisCount: isSmallScreen ? 3 : (isTablet ? 6 : 3),
+          //     crossAxisSpacing: isSmallScreen ? 8 : 12,
+          //     mainAxisSpacing: isSmallScreen ? 8 : 12,
+          //     childAspectRatio: isSmallScreen ? 1.8 : 2.0,
+          //   ),
+          //   itemCount: _quickAmounts.length,
+          //   itemBuilder: (context, index) {
+          //     final amount = _quickAmounts[index];
+          //     return _buildAmountChip(amount, isSmallScreen);
+          //   },
+          // ),
 
-          const SizedBox(height: 16),
+          // const SizedBox(height: 16),
 
           // Custom Amount
           TextField(
@@ -626,6 +631,11 @@ class _MoneyTransferScreenState extends State<MoneyTransferScreen> with SingleTi
           ),
           const SizedBox(height: 16),
           TextField(
+            onTap: ()=>{
+              if(_recipientType == 'qr'){
+                Navigator.push(context, MaterialPageRoute(builder: (context) =>QRScanScreen()))
+              }
+            },
             controller: _recipientController,
             decoration: InputDecoration(
               hintText: _getRecipientHint(),

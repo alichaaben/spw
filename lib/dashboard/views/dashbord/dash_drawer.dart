@@ -122,16 +122,16 @@ Future<void> _loadUserData() async {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (_userPhone.isNotEmpty) ...[
-                                  SizedBox(height: 2),
-                                  Text(
-                                    _userPhone,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontSize: isSmallScreen ? 11 : 12,
-                                    ),
-                                  ),
-                                ],
+                                // if (_userPhone.isNotEmpty) ...[
+                                //   SizedBox(height: 2),
+                                //   Text(
+                                //     _userPhone,
+                                //     style: TextStyle(
+                                //       color: Colors.white.withOpacity(0.7),
+                                //       fontSize: isSmallScreen ? 11 : 12,
+                                //     ),
+                                //   ),
+                                // ],
                               ],
                             ),
                           ),

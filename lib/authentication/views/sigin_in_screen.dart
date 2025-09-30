@@ -298,24 +298,20 @@ class _SignInPageState extends State<SignInPage> {
             width: isSmallScreen ? size.width * 0.25 : size.width * 0.22,
             height: isSmallScreen ? size.width * 0.25 : size.width * 0.22,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
               color: Colors.white,
-              size: 40,
+              borderRadius: BorderRadius.circular(24),
+              // boxShadow: [
+              //   BoxShadow(
+              //     color: const Color(0xFF6366F1).withOpacity(0.3),
+              //     blurRadius: 20,
+              //     offset: const Offset(0, 10),
+              //   ),
+              // ],
+            ),
+            child:   Image.asset(
+              'assets/img/spw_logo.jpeg',
+              fit: BoxFit.contain,
+              width: 50,
             ),
           ),
 
